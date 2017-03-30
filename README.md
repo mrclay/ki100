@@ -19,9 +19,9 @@ By itself core does nothing but set up plugins and call the "init" event. It's u
 Plugins
 -------
 
-A plugin is a directory containing a file "setup.php" which core includes. This file should return a callable that is used to set up the plugin. The callable is passed the `ki100\Core` and a unique `ki100\Plugin` object, which it can use a value container.
+A plugin is a directory containing a file "setup.php" which core includes. This file should return a callable that is used to set up the plugin. The callable is passed the `ki100\Core` and a unique `ki100\Plugin` object, which it can use as a value container.
 
-Plugins are loaded in alpha order and the directory name becomes the plugin's "id". Since you may want to use numeric prefixes to order loading, `/^\d+_/` is automatically stripped from the id.
+Plugins are loaded in alpha order and the directory name becomes the plugin's "id". Since you may want to use numeric prefixes to re-order loading, `/^\d+_/` is automatically stripped from the id. Hence a directory `005_game` would hold the plugin `game` and its Plugin object could be accessed via `$core->getPlugin('game')`.
 
 PSR-0 autoloading is set up for `$pluginDir/lib`.
 
@@ -138,7 +138,7 @@ $core->addListener('call:subtract', function (Event $event) use (&$cache) {
 
 A simpler way to write a "function" for call() is to create a PHP script in your plugin's `functions` directory and have it return a value. E.g. the plugin `core` (in directory `/plugins/000_core`) has a script `functions/example/subtract.php`. This would get executed to handle `$core->call('example/subtract')`.
 
-In the script's context, `$this` references the core, and `extract()` is used to turn the arguments into local vars, with integer key names prefixed with `arg`: `$core->call('example/foo', [3, 'bing' => 2]);` will result in variables `$arg0` and `$bing`.
+In the script's context, `$this` references the `ki100\Core`, and `extract()` is used to turn the arguments into local vars, with integer key names prefixed with `arg`. So `$core->call('example/foo', [3, 'bing' => 2])` will result in variables `$arg0` and `$bing`.
 
 The arguments and return value are filtered through `call_args:*` and `call:*` events.
 
