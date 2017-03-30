@@ -30,7 +30,7 @@ Once the "init" event fires, all the plugins should be set up and available.
 Events
 ------
 
-Events operate by passing a `ki100\Event` object to its listeners. An event has an inherent "value" that can be altered by listeners, an array of "data" passed by the triggering party, and a "stop" flag which can be used to cancel the remaining handlers. A separate "originalValue" property contains the event value at the time it was triggered.
+Events operate by passing a `ki100\Event` object to its listeners. An event has an inherent "value" that can be altered by listeners, an array of "data" passed by the triggering party, and can be stopped from propagating. A method can return the original value passed in at trigger-time.
 
 Event listeners are callables, and can be given an integer "timing" (default = 0) to influence the order in which they're called. Negative values are called earliest, large values are called last.
 
@@ -45,7 +45,7 @@ $core->addListener('foo/bar', function (Event $event) {
 
 $core->addListener('~^foo/~', function (Event $event) {
     $event->value += 1;
-    $event->stop = true;
+    $event->stopPropagation();
 });
 
 $core->addListener('foo/bar', function (Event $event) {
