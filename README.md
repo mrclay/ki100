@@ -131,7 +131,11 @@ $core->addListener('call_args:subtract', function (Event $event) {
 $diff = $core->call('subtract', [3, 2]); // -1
 ```
 
-Now another plugin wants to cache this operation:
+## Cancel an execution
+
+When the arguments are passed through the event `call_args:<function name>`, if a handler sets the key `__cancel`, the value at this key will be returned immediately, a function script will not be called, and the `call:<function name>` event will not be triggered.
+
+Let's use this to cache an operation called `expensive_op`:
 
 ```php
 <?php
@@ -139,26 +143,25 @@ Now another plugin wants to cache this operation:
 $cache = [];
 
 // after computing a value, cache it
-$core->addListener('call:subtract', function (Event $event) use (&$cache) {
+$core->addListener('call:expensive_op', function (Event $event) use (&$cache) {
     $key = serialize($event->data);
     $cache[$key] = $event->value;
 }, 999);
 
 // bypass future computations
-$core->addListener('call:subtract', function (Event $event) use (&$cache) {
-    $key = serialize($event->data);
+$core->addListener('call_args:expensive_op', function (Event $event) use (&$cache) {
+    $key = serialize($event->value);
     if (array_key_exists($key, $cache)) {
-        $event->value = $cache[$key];
-        $event->stopped = true;
+        $event->value['__cancel'] = $cache[$key];
     }
-}, -999);
+}, 999);
 ```
 
 ## "Function" scripts
 
 Another way to write a "function" for call() is to create a PHP script in your plugin's `functions` directory and have it return a value. E.g. the plugin `core` (in directory `/plugins/000_core`) has a script [`functions/example/subtract.php`](https://github.com/mrclay/ki100/blob/master/plugins/000_core/functions/example/subtract.php). This would get executed to handle `$core->call('example/subtract')`.
 
-This script is executed before the `call:` event is triggered.
+This script is executed before the `call:` event is triggered (if the call was not cancelled).
 
 In the script's context, `$core` references the `ki100\Core`, and `extract()` is used to turn the arguments into local vars, with integer key names prefixed with `arg`. So `$core->call('example/foo', [3, 'bing' => 2])` will result in variables `$arg0` and `$bing`.
 

@@ -39,6 +39,9 @@ class Core extends Container {
     }
     function call($name, array $args = [], $default = null) {
         $args = $this->triggerEvent("call_args:$name", $args);
+        if (array_key_exists('__cancel', $args)) {
+            return $args['__cancel'];
+        }
         if (isset($this->functionFiles[$name])) {
             if (substr($this->functionFiles[$name], -4) === '.php') {
                 ob_start();
