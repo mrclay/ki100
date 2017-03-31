@@ -17,7 +17,7 @@ By itself core provides almost nothing. It's up to plugins to add all business l
 
 # Plugins
 
-A plugin is a directory containing a file "setup.php" which core includes. This file should return a callable that is used to set up the plugin. The callable is passed the `ki100\Core` and a unique `ki100\Plugin` object, which it can use as a value container.
+A plugin is a directory containing a file "setup.php" which core includes. This file should return a callable that is used to set up the plugin. The callable is passed the `ki100\Core` and a unique `ki100\Plugin` object, which it can use as a value container. ([example](https://github.com/mrclay/ki100/blob/master/plugins/000_core/setup.php#L5))
 
 Plugins are loaded in alpha order and the directory name becomes the plugin's "id". Since you may want to use numeric prefixes to re-order loading, `/^\d+_/` is automatically stripped from the id. Hence a directory `005_game` would hold the plugin `game` and its Plugin object could be accessed via `$core->getPlugin('game')`.
 
@@ -80,6 +80,8 @@ $core->addListener('sanitize-html', function (Event $event) use ($plugin) {
 $html = $core->triggerEvent('sanitize-html', $html);
 ```
 
+Note in the above example, a typo of the event name could result in no filtering! Use constant names or wrap important processes in real PHP methods to avoid these kinds of risks.
+
 ## Event metadata and stopping propagation
 
 An event also carries an array of "data", and a "stopped" property that can prevent the passage to other listeners. Let's ban a user from login in:
@@ -88,7 +90,7 @@ An event also carries an array of "data", and a "stopped" property that can prev
 <?php
 
 // in the plugin setup function
-$core->addListener('before_login', function (Event $event) {
+$core->addListener('allow_login', function (Event $event) {
     if ($event->data['user']->name === 'Steve') {
         $event->value = false;
         $event->stopped = true;
@@ -96,14 +98,14 @@ $core->addListener('before_login', function (Event $event) {
 });
 
 // in the app's login process
-if (!$core->triggerEvent('before_login', true, ['user' => $user])) {
+if (!$core->triggerEvent('allow_login', true, ['user' => $user])) {
     // abandon login
 }
 ```
 
 # Event-alterable function calls
 
-call() provides a more formal way for plugins to collaborate on a "function call", a little like a [pointcut](https://en.wikipedia.org/wiki/Pointcut). First it passes the function arguments through an event. Then, if a script has been put in place to handle the function, it's executed and the return value is used. The return value is then passed through another event. In effect, plugins can modify arguments, perform tasks before/after, or cancel propagation to set the return value.
+call() provides a more formal way for plugins to collaborate on a "function call", a little like a [pointcut](https://en.wikipedia.org/wiki/Pointcut). First it passes the function arguments through the event `call_args:<function name>`. Then, if a script has been put in place to handle the function (see below), it's executed and the return value is used. The return value is then passed through another event `call:<function name>`. In effect, plugins can modify arguments, perform tasks before/after, or cancel propagation to set the return value.
 
 Let's set up a basic subtract operation.
 
@@ -127,12 +129,16 @@ $core->addListener('call_args:subtract', function (Event $event) {
 });
 
 $diff = $core->call('subtract', [3, 2]); // -1
+```
 
-// we could set up a crude cache...
+Now another plugin wants to cache this operation:
+
+```php
+<?php
 
 $cache = [];
 
-// cache computed values
+// after computing a value, cache it
 $core->addListener('call:subtract', function (Event $event) use (&$cache) {
     $key = serialize($event->data);
     $cache[$key] = $event->value;
@@ -150,13 +156,11 @@ $core->addListener('call:subtract', function (Event $event) use (&$cache) {
 
 ## "Function" scripts
 
-A simpler way to write a "function" for call() is to create a PHP script in your plugin's `functions` directory and have it return a value. E.g. the plugin `core` (in directory `/plugins/000_core`) has a script `functions/example/subtract.php`. This would get executed to handle `$core->call('example/subtract')`.
+Another way to write a "function" for call() is to create a PHP script in your plugin's `functions` directory and have it return a value. E.g. the plugin `core` (in directory `/plugins/000_core`) has a script [`functions/example/subtract.php`](https://github.com/mrclay/ki100/blob/master/plugins/000_core/functions/example/subtract.php). This would get executed to handle `$core->call('example/subtract')`.
 
 This script is executed before the `call:` event is triggered.
 
-In the script's context, `$this` references the `ki100\Core`, and `extract()` is used to turn the arguments into local vars, with integer key names prefixed with `arg`. So `$core->call('example/foo', [3, 'bing' => 2])` will result in variables `$arg0` and `$bing`.
-
-The arguments and return value are filtered through `call_args:*` and `call:*` events.
+In the script's context, `$core` references the `ki100\Core`, and `extract()` is used to turn the arguments into local vars, with integer key names prefixed with `arg`. So `$core->call('example/foo', [3, 'bing' => 2])` will result in variables `$arg0` and `$bing`.
 
 ### No-frills templating
 
@@ -164,7 +168,7 @@ If a function script sends output, this becomes its return value. E.g. `$core->c
 
 If the script isn't a PHP file, its content is returned directly. E.g. `$core->call('example/static-view.js')`.
 
-Either way, templates are still like functions and are filtered by events similarly.
+Either way, the arguments and output of templates are passed through events.
 
 # Atrocities here that I don't condone
 
