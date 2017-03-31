@@ -26,7 +26,7 @@ class Core extends Container {
                 }
                 $id = preg_replace('~^\\d+_~', '', $entry);
                 $plugin = new Plugin($id, "$dir/$entry");
-                $this->plugins[$plugin->getId()] = $plugin;
+                $this->plugins[$plugin->id] = $plugin;
                 $factory = $this->requireFile("$dir/$entry/setup.php");
                 if (is_callable($factory)) {
                     $factory($this, $plugin);
@@ -38,7 +38,7 @@ class Core extends Container {
         }
     }
     function call($name, array $args = [], $default = null) {
-        $args = $this->filter("call_args:$name", $args);
+        $args = $this->triggerEvent("call_args:$name", $args);
         if (isset($this->functionFiles[$name])) {
             if (substr($this->functionFiles[$name], -4) === '.php') {
                 ob_start();
@@ -53,35 +53,33 @@ class Core extends Container {
         } else {
             $value = $default;
         }
-        return $this->filter("call:$name", $value, $args);
-    }
-    function initialize() {
-        $this->triggerEvent('init', new Event());
+        return $this->triggerEvent("call:$name", $value, $args);
     }
     function addListener($eventName, callable $listener, $timing = 0) {
         $this->listenerWrappers[] = [$eventName, $listener, (int)$timing];
     }
-    function triggerEvent($eventName, Event $event) {
+    function triggerEvent($eventName, $value = null, array $data = []) {
+        $event = new Event($value);
         $event->name = $eventName;
-        $event->setCore($this);
-        foreach ($this->getListeners($eventName) as $listener) {
+        $event->data = $data;
+        return $this->callListeners($event)->value;
+    }
+    function callListeners(Event $event) {
+        $event->core = $this;
+        foreach ($this->getListeners($event->name) as $listener) {
             $listener($event);
-            if ($event->isStopped()) {
+            if ($event->stopped) {
                 break;
             }
         }
-        return $event->value;
-    }
-    function filter($name, $value = null, array $data = []) {
-        $event = new Event($value);
-        $event->data = $data;
-        return $this->triggerEvent("filter:$name", $event);
+        return $event;
     }
     function getListeners($eventName) {
         $listenerSets = [];
         foreach ($this->listenerWrappers as $wrapper) {
             list ($registeredName, $listener, $timing) = $wrapper;
-            if ($registeredName === $eventName || ($registeredName[0] === '~' && preg_match($registeredName, $eventName))) {
+            if ($registeredName === $eventName
+                    || ($registeredName[0] === '~' && preg_match($registeredName, $eventName))) {
                 $listenerSets[$timing][] = $listener;
             }
         }
@@ -126,41 +124,18 @@ class Core extends Container {
     }
 }
 class Plugin extends Container {
-    private $id;
-    private $dir;
+    public $id, $dir;
     public function __construct($id, $dir) {
         $this->id = $id;
         $this->dir = $dir;
     }
-    public function getDir() {
-        return $this->dir;
-    }
-    public function getId() {
-        return $this->id;
-    }
 }
 class Event {
-    public $name, $value, $data = [];
-    private $originalValue;
-    private $stopped = false;
-    private $core;
+    public $name, $value, $originalValue, $data = [], $stopped = false;
+    /* @var Core */
+    public $core;
     public function __construct($value = null) {
         $this->value = $value;
         $this->originalValue = $value;
-    }
-    public function getOriginalValue() {
-        return $this->originalValue;
-    }
-    public function isStopped() {
-        return $this->stopped;
-    }
-    public function stopPropagation() {
-        $this->stopped = true;
-    }
-    public function getCore() {
-        return $this->core;
-    }
-    public function setCore(Core $core) {
-        $this->core = $core;
     }
 }
