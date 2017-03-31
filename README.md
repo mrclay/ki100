@@ -1,4 +1,4 @@
-**ki100** is a plugin framework under ~~100~~ 170 lines and includes events, cooperative value filtering, autoloading, lazy-loading DI containers, nested plugins, and basic templating.
+**ki100** is a plugin framework under ~~100~~ 170 lines and includes nested plugins, events/pointcuts, autoloading, lazy-loading DI containers, and basic templating.
 
 This is something old sitting on my local drive and I had some fun making it. Don't use it for your next project!
 
@@ -64,7 +64,7 @@ Filters are just sugar for using the event system to collaboratively produce or 
 ```php
 <?php
 
-$core->addListener('filter/sanitize-html', function (Event $event) {
+$core->addListener('filter:sanitize-html', function (Event $event) {
     $event->value = MyFavoriteHtmlFilter::filter($event->value);
 });
 
@@ -93,7 +93,7 @@ $core->component; // same object
 Event-alterable function calls
 ------------------------------
 
-Core's call() takes a name and arguments, filters the arguments via an event, and runs another filter to try to calculate a return value. This allows plugins to collaborate on function calls, even replacing them, or caching their return values.
+Core's call() allows plugins to collaborate on function calls, a little like a [pointcut](https://en.wikipedia.org/wiki/Pointcut). Both the arguments and the return value are filtered for each call(), so a plugin can replace functionality, alter arguments, perform tasks before/after, or, e.g., inject a caching layer.
 
 ```php
 <?php
