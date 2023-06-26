@@ -21,18 +21,17 @@ class Response {
   ) {}
 }
 
-return function (Core $core, Plugin $plugin) {
+return function (Core $core) {
   // to support nested plugins
   // $core->addPlugins(__DIR__ . '/plugins');
 
-
   // Example of using the Container
-  $plugin->setFactory('originalRequest', fn() => new Request(
+  $core->setFactory('originalRequest', fn() => new Request(
     path: $_GET['PATH'] ?? '/',
   ));
 
-  $core->addListener('init', function (Event $event) use ($core, $plugin) {
-    $response = $core->call('dispatch', [$plugin->originalRequest]);
+  $core->addListener('init', function (Event $event) use ($core) {
+    $response = $core->call('dispatch', [$core->originalRequest]);
     if (!($response instanceof Response)) {
       http_response_code(400);
       echo 'Request not handled';
