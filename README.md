@@ -15,6 +15,18 @@ $core->triggerEvent('init');
 
 By itself core provides almost nothing. It's up to plugins to add all business logic by working together like a big happy team. Plugins can listen for and trigger events, add lazy-loading dependencies to the core, or just have fun and chill.
 
+## Try in docker
+
+```sh
+docker-compose up -d
+```
+
+Then try these URLs:
+
+* http://localhost:8080/example/?PATH=/hello
+* http://localhost:8080/example/?PATH=/pokemon-color/brown
+* http://localhost:8080/example/?PATH=/bad-url
+
 # Plugins
 
 A plugin is a directory containing a file "setup.php" which core includes. This file should return a callable that is used to set up the plugin. The callable is passed the `ki100\Core` and a unique `ki100\Plugin` object, which it can use as a value container. ([example](https://github.com/mrclay/ki100/blob/master/plugins/000_core/setup.php#L5))

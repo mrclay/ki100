@@ -2,15 +2,18 @@
 namespace ki100; // forgive me
 class Container {
     private $_factories = [];
+    private $_values = [];
     function setFactory($name, $factory) {
         $this->_factories[$name] = $factory;
     }
     function __get($name) {
-        if (isset($this->_factories[$name])) {
-            $this->{$name} = call_user_func($this->_factories[$name]);
-            return $this->{$name};
+        if (!array_key_exists($name, $this->_values)) {
+            if (!array_key_exists($name, $this->_factories)) {
+                return null;
+            }
+            $this->_values[$name] = call_user_func($this->_factories[$name]);
         }
-        return null;
+        return $this->_values[$name];
     }
 }
 class Core extends Container {
@@ -127,11 +130,10 @@ class Core extends Container {
     }
 }
 class Plugin extends Container {
-    public $id, $dir;
-    public function __construct($id, $dir) {
-        $this->id = $id;
-        $this->dir = $dir;
-    }
+    public function __construct(
+      readonly string $id,
+      readonly string $dir
+    ) {}
 }
 class Event {
     public $name, $value, $originalValue, $data = [], $stopped = false;

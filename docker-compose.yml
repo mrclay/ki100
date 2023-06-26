@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  site:
+    image: php:8-apache
+    working_dir: /var/www/html/
+    ports:
+      - "8080:80"
+    user: "1000:1000"
+    volumes:
+      - ./example:/var/www/html/example
+      - ./ki100.php:/var/www/html/ki100.php
